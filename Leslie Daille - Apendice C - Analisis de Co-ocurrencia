@@ -35,7 +35,7 @@ S02EXPI.16s18s.Biofilm <- rbind(filas16S.iguales.18S, S02EXPI18S.Otu.Table.2.Ser
 S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125 <- select(S02EXPI.16s18s.Biofilm, contains('011'), contains('012'), contains('013'))
 #Tiempo 0.25 dias
 S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.025 <- select(S02EXPI.16s18s.Biofilm, contains('021'), contains('022'), contains('023'))
-#Tiempo 0.375 dias
+#Tiempo 0.375 dias 
 S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0375 <- select(S02EXPI.16s18s.Biofilm, contains('031'), contains('032'), contains('033'))
 #Tiempo 0.5 dias
 S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.05 <- select(S02EXPI.16s18s.Biofilm, contains('041'), contains('042'), contains('043'))
