@@ -18,10 +18,8 @@ library('dplyr')
 
 #TABLAS PARA TRABAJAR:
 #Se realizo la construccion de una tabla conjunta que incluye Bacterias, Arqueas y Eucariontes determinados en la biopelicula. Para luego construir tablas para cada tiempo de muestreo que seran utilizadas en la construccion de las redes de co-ocurrencia.
-```{r message=FALSE, warning=FALSE}
+
 #Tablas para analisis de la biopelicula considerando OTUs obtenidas desde la secuenciacion del gen 16S & 18S rRNA.
-
-
 tiempos <- c(0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 7, 21, 30, 55, 85, 112)
 
 #OTUs - 16S rRNA
@@ -87,4 +85,3 @@ Matrizfromto4.16s18s.0125 <- as.data.frame(print(w)) #Se genero un data.frame co
 
 v1 <- Matrizfromto4.16s18s.0125[Matrizfromto4.16s18s.0125$prob_cooccur > 0.4, ] # Se seleccionaron valores de coocurrencia mayores a 0.4 
 write.table(v1, file='SerieT.Biofilm.16s18s.0125.txt', sep = '\t')
-```
