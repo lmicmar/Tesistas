@@ -5,7 +5,7 @@
 
 # *Basado en una matriz de presencia-ausencia.
 
-#LIBERIAS REQUERIDAS:
+#LIBERIAS REQUERIDAS: 
 library(cooccur)
 library(gmp)
 library(ggplot2)
