@@ -1,8 +1,9 @@
 #####################################################################################################
-############################    Analisis de Co-ocurrencia de Especies     ###########################
+############################    Analisis de Co-ocurrencia de Especies*    ###########################
 ############################    Laboratorio de Microbiologia Marina UC    ###########################
 ######################################################################################### LK2018 ####
 
+# *Basado en una matriz de presencia-ausencia.
 
 #LIBERIAS REQUERIDAS:
 library(cooccur)
