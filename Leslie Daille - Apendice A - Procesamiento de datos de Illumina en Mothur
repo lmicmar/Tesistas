@@ -1,0 +1,67 @@
+mothur v.1.39.5
+
+
+mothur > make.contigs(file=./stability.files, processors=8)
+
+mothur > summary.seqs(fasta=current)
+
+mothur > screen.seqs(fasta=stability.trim.contigs.fasta, summary=stability.trim.contigs.summary, minlength=400, maxlength=450, maxhomop=8, maxambig=0, processors=8, group=stability.contigs.groups)
+
+mothur > summary.seqs(fasta=current)
+
+mothur > unique.seqs(fasta=current)
+
+mothur > count.seqs(name=stability.trim.contigs.good.names, group=stability.contigs.good.groups, processors=8)
+
+mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.fasta, count=stability.trim.contigs.good.count_table, processors=8)
+
+mothur > count.groups(count=current)
+
+mothur > split.abund(fasta=current, count=current, cutoff=1, accnos=true)
+
+mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.abund.fasta, count=stability.trim.contigs.good.abund.count_table)
+
+mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.rare.fasta, count=stability.trim.contigs.good.rare.count_table)
+
+mothur > align.seqs(fasta=stability.trim.contigs.good.unique.abund.fasta, reference=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.align, flip=T)
+
+mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.abund.align, count=stability.trim.contigs.good.abund.count_table)
+
+mothur > filter.seqs(fasta=stability.trim.contigs.good.unique.abund.align, vertical=T)
+
+mothur > summary.seqs(fasta=current)
+
+mothur > unique.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.fasta, count=stability.trim.contigs.good.abund.count_table)
+
+mothur > summary.seqs(fasta=current)
+
+mothur > pre.cluster(fasta=stability.trim.contigs.good.unique.abund.filter.unique.fasta, count=stability.trim.contigs.good.unique.abund.filter.count_table, diffs=1, processors=8)
+
+mothur > summary.seqs(fasta=current, count=current, processors=8)
+
+mothur > chimera.uchime(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.count_table, processors=8)
+
+mothur > remove.seqs(fasta=current, count=current, accnos=current)
+
+mothur > classify.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, reference=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.align, taxonomy=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.tax, processors=8)
+
+mothur > dist.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, cutoff=0.1, processors=8)
+
+mothur > cluster(column=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.dist, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, method=furthest, cutoff=0.03)
+
+# Basado en OTU!
+mothur > classify.otu(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, taxonomy=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.seed_v128.wang.taxonomy, label=0.02, probs=F)
+# Cambiar el nombre
+mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.taxonomy stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.taxonomy
+mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.tax.summary stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.tax.summary
+
+# Basado en SEQS!
+mothur > classify.otu(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, taxonomy=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.seed_v128.wang.taxonomy, label=0.02, probs=F, basis=sequence)
+mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.taxonomy stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.SEQS.taxonomy
+mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.tax.summary stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.SEQS.tax.summary
+
+mothur > make.shared(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, label=0.02)
+
+mothur > summary.single(shared=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.shared, calc=sobs-shannon-npshannon-simpson, subsample=T)
+
+mothur > get.oturep(count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, method=abundance)
