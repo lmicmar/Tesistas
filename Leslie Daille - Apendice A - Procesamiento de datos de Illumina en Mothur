@@ -1,67 +1,88 @@
-mothur v.1.39.5
+Leslie Daille - Apendice A - Procesamiento de datos de Illumina en Mothur.
+Datos Illumina para gen 16S rRNA V4-5, obtenidas desde IMR-Sequencing, CA. 
 
+Se procesaron utilizando Mothur v.1.39.5
 
+##################### Pre-tratamiento de secuencias ##############################################
+
+#Hacer archivo con los nombres de las muestras y sus respectivos archivos de secuenciacion (Primera columna, nombre que le dará a la muestra; Segunda columna, nombre del archivo R1; Tercera columna, nombre del archivo R2). Nombrarlo stability.files! 
+#Si son muchos nombres puede hacerse desde la Terminal usando el comando: make.files(inputdir= /directoriodondeestenlassecuencias, type=gz)
+#Recordar abrir Mothur desde la Terminal, en la misma carpeta donde se encuentren todos los archivos de secuenciación y el archivo con los nombres de las muestras. 
+
+#Para hacer los contigs usar el siguiente comando (en mi caso con dos procesadores porque es lo que hay):
 mothur > make.contigs(file=./stability.files, processors=8)
 
-mothur > summary.seqs(fasta=current)
+#Chequear los resultados del ensamblaje de los contigs usando: 
+mothur > summary.seqs(fasta=seasonality.trim.contigs.fasta)
 
+#En nuestro caso las secuencias deberían variar entre 400-500 bp pero si tenemos máximos y mínimos muy distintos a esos y además tenemos ambigüedades en el 2.5% de nuestras muestras entonces corremos para limpiarlas:
 mothur > screen.seqs(fasta=stability.trim.contigs.fasta, summary=stability.trim.contigs.summary, minlength=400, maxlength=450, maxhomop=8, maxambig=0, processors=8, group=stability.contigs.groups)
 
-mothur > summary.seqs(fasta=current)
-
+#Para eliminar las secuencias que puedan ser por error del computador debido a la generación de contigs: 
 mothur > unique.seqs(fasta=current)
 
+#Para facilitar la vida después, se hace una tabla con el numero de veces que cada secuencia única se encuentra en cada grupo: filas, nombre de la secuencia; columna, nombre del grupo.
 mothur > count.seqs(name=stability.trim.contigs.good.names, group=stability.contigs.good.groups, processors=8)
 
+#Y veo los resultados de la cuenta con:
 mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.fasta, count=stability.trim.contigs.good.count_table, processors=8)
 
 mothur > count.groups(count=current)
 
 mothur > split.abund(fasta=current, count=current, cutoff=1, accnos=true)
-
 mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.abund.fasta, count=stability.trim.contigs.good.abund.count_table)
-
 mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.rare.fasta, count=stability.trim.contigs.good.rare.count_table)
 
+
+##################### Alineamiento y Verificación ################################################
+
+#Ahora ya puedo alinear las secuencias (voy a intentar a ver si funciona con el rango que le di =P)
 mothur > align.seqs(fasta=stability.trim.contigs.good.unique.abund.fasta, reference=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.align, flip=T)
 
+#Y se vuelve a revisar como quedo con:
 mothur > summary.seqs(fasta=stability.trim.contigs.good.unique.abund.align, count=stability.trim.contigs.good.abund.count_table)
 
+#Luego, eliminamos los gaps (-) de la tabla para solo quedarnos con los que tienen valores.
 mothur > filter.seqs(fasta=stability.trim.contigs.good.unique.abund.align, vertical=T)
-
 mothur > summary.seqs(fasta=current)
 
+#Revisamos nuevamente que solo hayan secuencias unicas:
 mothur > unique.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.fasta, count=stability.trim.contigs.good.abund.count_table)
-
 mothur > summary.seqs(fasta=current)
 
+#Se hace un pre-cluster para unir secuencias que puedan tener hasta 2 nt de diferencia.
 mothur > pre.cluster(fasta=stability.trim.contigs.good.unique.abund.filter.unique.fasta, count=stability.trim.contigs.good.unique.abund.filter.count_table, diffs=1, processors=8)
-
 mothur > summary.seqs(fasta=current, count=current, processors=8)
 
+#Para identificar y eliminar las quimeras del .count_table:
 mothur > chimera.uchime(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.count_table, processors=8)
 
+#Para eliminarlas luego del fasta:
 mothur > remove.seqs(fasta=current, count=current, accnos=current)
+mothur > summary.seqs(fasta=current, count=current)
 
+##################### Asignación y Clasificación de OTUs ########################################## 
+
+#Se clasifican las secuencias:
 mothur > classify.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, reference=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.align, taxonomy=/media/lmicmar/Almacenamiento/Data_Bases/Silva.seed_v128/silva.seed_v128.tax, processors=8)
 
+#Se calculan las distancias y finalmente podemos hacer cluster con OTUs.
 mothur > dist.seqs(fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, cutoff=0.1, processors=8)
-
 mothur > cluster(column=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.dist, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, method=furthest, cutoff=0.03)
 
-# Basado en OTU!
+#Clasificar basado en OTU!
 mothur > classify.otu(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, taxonomy=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.seed_v128.wang.taxonomy, label=0.02, probs=F)
-# Cambiar el nombre
+###cambie nombre!
 mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.taxonomy stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.taxonomy
 mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.tax.summary stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.tax.summary
 
-# Basado en SEQS!
+#Clasificar basado en SEQS!
 mothur > classify.otu(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, taxonomy=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.seed_v128.wang.taxonomy, label=0.02, probs=F, basis=sequence)
 mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.taxonomy stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.SEQS.taxonomy
 mv stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.tax.summary stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.SEQS.tax.summary
 
+#Hay que determinar cuantas secuencias hay en cada OTU de cada grupo.
 mothur > make.shared(list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, label=0.02)
 
-mothur > summary.single(shared=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.shared, calc=sobs-shannon-npshannon-simpson, subsample=T)
-
+#Para obtener las secuencias representativas de cada OTU para posteriores verificaciones de la asignacion.
 mothur > get.oturep(count=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.count_table, list=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.list, fasta=stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fasta, method=abundance)
