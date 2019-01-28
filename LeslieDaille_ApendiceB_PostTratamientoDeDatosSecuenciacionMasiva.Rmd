@@ -1,0 +1,145 @@
+---
+title: "Leslie Daille - Apendice B"
+subtitle: Post-tratamiento de Datos de Secuenciacion Masiva
+output: html_notebook
+---
+
+LIBRERIAS REQUERIDAS:
+```{r}
+library('vegan')
+library('ape')
+library('permute')
+library('matrixStats')
+library('GUniFrac')
+library('dplyr')
+library("RColorBrewer")
+```
+
+FUNCIONES REQUERIDAS:
+Funciones desarrolladas por Benjamin Glasner.
+```{r}
+Tax.sum <- function(OTU.Table, Tax.Table, Tax.lvl ){
+  z <- NULL
+  y <- NULL
+  for (i in 1:length(unique(Tax.Table[colnames(OTU.Table),Tax.lvl]))) {
+    if (length(OTU.Table[,which(Tax.Table[colnames(OTU.Table),Tax.lvl]==unique(Tax.Table[colnames(OTU.Table),Tax.lvl])[i])])!=length(rownames(OTU.Table))) {
+      z <- which(Tax.Table[colnames(OTU.Table),Tax.lvl]==unique(Tax.Table[colnames(OTU.Table),Tax.lvl])[i])
+      y <- cbind(y, apply(OTU.Table[,which(Tax.Table[colnames(OTU.Table),Tax.lvl]==unique(Tax.Table[colnames(OTU.Table),Tax.lvl])[i])], 1, function(x) sum(x)))
+    } else { 
+      y <- cbind(y, OTU.Table[,which(Tax.Table[colnames(OTU.Table),Tax.lvl]==unique(Tax.Table[colnames(OTU.Table),Tax.lvl])[i])])
+    }
+  }
+  colnames(y) <- unique(Tax.Table[colnames(OTU.Table),Tax.lvl])
+  invisible((y))
+}
+
+rltv.Otu.Table <- function(x){
+x.Data.rltv <- NULL
+for (i in 1:dim(x)[1]) {
+  x.Data.rltv <- rbind(x.Data.rltv, x[i,]/apply(x, 1, function(x) sum(x))[i])
+ }
+invisible(x.Data.rltv)
+}
+```
+
+
+TABLAS PARA TRABAJAR:
+El servicio de secuenciacion entrega como output archivos ya distribuidos en muestras, que fueron procesados con Mothur, utilizando el siguiente procesamiento descrito en el Apendice A de esta tesis. La tabla resultante es la que utilizaremos a continuacion para el analisis de los datos.
+
+Nota: La tabla que resultante de Mothur: Otu.Table (.shared file) tiene columnas extra que no se utilizaran. Esto depende de como se haya manejado la informacion directamente en Mothur, pero no es un problema y solo se debe modificar de la siguiente forma. Ademas, ser cuidadoso con la Tax.Table (.taxonomy file) porque el archivo resultante tambien agrega mas columnas de las necesarias para el analisis y lo hace utilizando dos tipos distintos de separadores.
+
+```{r}
+#Para leer la tabla, usando la primera fila como los nombres de las columnas, y usando como separados los tabs y los decimales como puntos.
+S02EXPI16S.Otu.Table <- read.table('./stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.shared', header = T, sep = '\t', dec = '.', skip = 0)
+Sample.Names <- S02EXPI16S.Otu.Table[,2]
+S02EXPI16S.Otu.Table <- S02EXPI16S.Otu.Table[,c(-1,-2,-3)]
+S02EXPI16S.Otu.Table <- apply(S02EXPI16S.Otu.Table, 2, function(x) as.numeric(as.character(x)))
+rownames(S02EXPI16S.Otu.Table) <- Sample.Names
+
+#Para que esta tabla sea reconocida con todos los niveles taxonomicos, se debe separar primero por punto y coma, y luego por tabulaciones. Hasta ahora lo hemos hecho en Excel previamente.
+S02EXPI16S.Tax.Table <- read.table(file = ('./stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.SEP.txt'), sep = '\t', header = T)
+rownames(S02EXPI16S.Tax.Table) <- S02EXPI16S.Tax.Table[,1]
+print(all(colnames(S02EXPI16S.Otu.Table)%in%rownames(S02EXPI16S.Tax.Table))) #if TRUE you can continue
+
+S02EXPI16S.Tax.Table <- S02EXPI16S.Tax.Table[colnames(S02EXPI16S.Otu.Table),]
+```
+
+
+ANALISIS:
+A continuacion, se realiza la preparacion para el analisis downstream de los datos. Para comenzar podemos visualizar los datos crudos de lecturas de secuenciacion en los siguientes graficos a nivel de clase y familia.
+```{r}
+#Los colores que utilizaremos para graficar con los establecidos en el siguiente vector.
+colores <- colorRampPalette(c("#66C2A5","#FC8D62","#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3"))
+rand.cols <- sample(colores(dim(Tax.sum(S02EXPI16S.Otu.Table, S02EXPI16S.Tax.Table, 5))[2]))
+
+print('CLASS LEVEL')
+plot.new()
+par(mar=c(0,0,0,0), oma=c(0,0,0,0))
+legend('center', legend = colnames(Tax.sum(S02EXPI16S.Otu.Table, S02EXPI16S.Tax.Table, 5)),
+       cex=0.5, ncol=5, fill=rand.cols,
+       x.intersp = 0.3, xjust = 0.1, yjust = 0.1, y.intersp = 0.9, bty = 'n', adj = 0, 
+       text.width = 0.2, pt.cex=0.2)
+
+par(mar=c(5.1,4.1,4.1,2.1), oma=c(0,0,0,0))
+barplot(t(Tax.sum(S02EXPI16S.Otu.Table, S02EXPI16S.Tax.Table, 5)), border=NA,
+        col=rand.cols, las=2, cex.names = 0.3)
+```
+
+Agregamos una visualizacion de las curvas de rarefaccion de los datos crudos para analizar el esfuerzo muestreal realizado.
+```{r eval=FALSE, include=FALSE}
+library('GUniFrac')
+raremax <- sort(rowSums(S02EXPI16S.Otu.Table))
+plot(raremax)
+
+par(mar=c(5.1,4.1,4.1,2.1), oma=c(0,0,0,0))
+rarecurve(x = S02EXPI16S.Otu.Table, col = colores(length(row.names(S02EXPI16S.Otu.Table))), lwd = 2, las = 1, label = F, step = 10, cex=0.5)
+```
+
+Para los siguientes analisis, el set de datos se trato considerando que cada OTU debe tener una presencia minima. Esta se definio en 2 muestras debido al numero limitado de muestras de agua (n=3). S02EXPI16S.Otu.Table.2 fue utilizada para los analisis posteriores. No se utilizo rarefaccion en el set de datos. Finalmente se realizo una limpieza de la tabla eliminando aquellas OTUs que representaban un pequeno porcentaje de la abundancia (0.0003%). Esto resulto en una reduccion de OTUs de ~1500, pero con bajo impacto en las lecturas (desde 3850003 a 3778334).
+```{r}
+S02EXPI16S.Otu.Table.2 <- read.table('./stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.shared', header = T, sep = '\t', dec = '.', skip = 0)
+Sample.Names.2 <- S02EXPI16S.Otu.Table.2[,2]
+S02EXPI16S.Otu.Table.2 <- S02EXPI16S.Otu.Table.2[,c(-1,-2,-3)]
+S02EXPI16S.Otu.Table.2 <- apply(S02EXPI16S.Otu.Table.2, 2, function(x) as.numeric(as.character(x)))
+rownames(S02EXPI16S.Otu.Table.2) <- Sample.Names.2
+
+x <- NULL
+for (i in 1:dim(S02EXPI16S.Otu.Table.2)[1]){
+  x <- c(x, dim(S02EXPI16S.Otu.Table.2[,which(apply(S02EXPI16S.Otu.Table.2, 2, function(x) length(which(x>0)))>=i)])[2])
+}
+plot(x, xlab = 'Min presence', ylab = 'Total OTUs in Data Set')
+S02EXPI16S.Otu.Table.2 <- S02EXPI16S.Otu.Table.2[,which(apply(S02EXPI16S.Otu.Table.2, 2, function(x) length(which(x>0)))>=2)]
+
+x <- NULL
+for (i in seq(.0001,1,.0001)) {
+  x <- c(x, length(which(colSums(S02EXPI16S.Otu.Table.2)*100/sum(colSums(S02EXPI16S.Otu.Table.2))>=i)))
+}
+plot(seq(.0001,1,.0001), x, xlab = '% Deleted', ylab = 'Total OTUs in Data Set')
+plot(seq(.0001,1,.0001)[1:25], x[1:25], xlab = '% Deleted', ylab = 'Total OTUs in Data Set', main = 'Zoom')
+S02EXPI16S.Otu.Table.2 <- S02EXPI16S.Otu.Table.2[,which(colSums(S02EXPI16S.Otu.Table.2)*100/sum(colSums(S02EXPI16S.Otu.Table.2))>=seq(.0001,1,.0001)[3])]
+
+
+print('Total reads from raw OTU table:')
+print(sum(rowSums(S02EXPI16S.Otu.Table)))
+print('Total reads from trimmed OTU table:')
+print(sum(rowSums(S02EXPI16S.Otu.Table.2)))
+print('Difference in reads between both treatments:')
+print(sum(rowSums(S02EXPI16S.Otu.Table))-sum(rowSums(S02EXPI16S.Otu.Table.2)))
+
+
+S02EXPI16S.Tax.Table.2 <- read.table(file = ('./stability.trim.contigs.good.unique.abund.filter.unique.precluster.pick.fn.unique_list.0.02.cons.OTU.SEP.txt'), sep = '\t', header = T)
+rownames(S02EXPI16S.Tax.Table.2) <- S02EXPI16S.Tax.Table.2[,1]
+print(all(colnames(S02EXPI16S.Otu.Table.2)%in%rownames(S02EXPI16S.Tax.Table.2))) #if TRUE you can continue
+
+S02EXPI16S.Tax.Table.2 <- S02EXPI16S.Tax.Table.2[colnames(S02EXPI16S.Otu.Table.2),]
+```
+
+Para realizar los calculos de abundancia relativa de la tabla de OTU se utilizo la funcion rltv.Otu.Table. 
+```{r}
+S02EXPI16S.Otu.Table.2.Rltv <- rltv.Otu.Table(S02EXPI16S.Otu.Table.2)
+apply(S02EXPI16S.Otu.Table.2.Rltv, 2, function(x) sum(x))[1:6101]
+rownames(S02EXPI16S.Otu.Table.2.Rltv) <- Sample.Names.2
+```
+
+
+
