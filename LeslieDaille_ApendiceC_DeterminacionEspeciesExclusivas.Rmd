@@ -1,0 +1,215 @@
+---
+title: "Leslie Daille - Apendice C"
+subtitle: Determinacion de OTUs y Taxa exclusivos
+output: html_notebook
+---
+
+
+LIBRERIAS REQUERIDAS:
+```{r}
+library('dplyr')
+library('VennDiagram')
+library('questionr')
+```
+
+
+FUNCIONES REQUERIDAS: Funcion modificada por Benjamin Glasner.
+```{r}
+### Funcion para hacer Diagramas de Venn
+Venn.Diag <- function(l1) { #list with vectors to compare
+  a1 <- length(l1)
+  if(is.list(l1) == FALSE){
+    print('imput should be a list')
+  }
+  if(a1 <= 1){
+    print('Not enough elements')
+  }else{
+    if(a1 == 2){ draw.pairwise.venn(area1 = length(l1[[1]]), area2 = length(l1[[2]]), cross.area = length(Reduce(intersect, l1)),
+                                  lty = rep("blank", 2), fill = c("light blue", "green"), category = names(l1), 
+                                  alpha = rep(0.5, 2), cat.pos = c(0, 0), euler.d = TRUE, sep.dist = c(0.5, 0.5), 
+                                  rotation.degree = 0)
+    }
+    if(a1 == 3){ draw.triple.venn(area1 = length(l1[[1]]), area2 = length(l1[[2]]), area3 = length(l1[[3]]), 
+                                n12 = length(Reduce(intersect, l1[c(1,2)])), n13 = length(Reduce(intersect, l1[c(1,3)])), 
+                                n23 = length(Reduce(intersect, l1[c(2,3)])), n123 = length(Reduce(intersect, l1[c(1,2,3)])), 
+                                lty = rep("blank", 3), fill = c("light blue", "green", "Red1"), category = names(l1), 
+                                alpha = rep(0.5, 3), cat.pos = rep(0, 3), euler.d = TRUE, sep.dist = rep(0.5, 3), 
+                                rotation.degree = 0)
+    }
+    if(a1 == 4){ draw.quad.venn(area1 = length(l1[[1]]), area2 = length(l1[[2]]), area3 = length(l1[[3]]), area4 = length(l1[[4]]), 
+                              n12 = length(intersect(l1[[1]], l1[[2]])), n13 = length(intersect(l1[[1]], l1[[3]])), n14 = length(intersect(l1[[1]], l1[[4]])),
+                              n23 = length(intersect(l1[[2]], l1[[3]])), n24 = length(intersect(l1[[2]], l1[[4]])), n34 = length(intersect(l1[[3]], l1[[4]])),
+                              n123 = length(intersect(intersect(l1[[1]], l1[[2]]), l1[[3]])), n124 = length(intersect(intersect(l1[[1]], l1[[2]]), l1[[4]])), n134 = length(intersect(intersect(l1[[1]], l1[[3]]), l1[[4]])),
+                              n234 = length(intersect(intersect(l1[[2]], l1[[3]]), l1[[4]])), n1234 = length(intersect(intersect(intersect(l1[[1]], l1[[2]]), l1[[3]]), l1[[4]])),
+                              lty = rep("blank", 4), fill = c("light blue", "green", "Red1", 'orange'), category = names(l1), 
+                              alpha = rep(0.5, 4), cat.pos = rep(0, 4), euler.d = TRUE, sep.dist = rep(0.5, 4), 
+                              rotation.degree = 0)
+    }
+    if(a1 > 4){ print('Too much elements')
+    }
+    print('So there you have')
+  }
+}
+```
+
+
+TABLAS PARA TRABAJAR:
+Para construir las tablas que contuvieran tanto los datos de la biopelicula como del agua con las OTUs de 16S y las de 18S.
+```{r}
+#Tablas para analisis de la biopelicula considerando OTUs obtenidas desde la secuenciacion del gen 16S & 18S rRNA.
+tiempos <- c(0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 7, 21, 30, 55, 85, 112)
+
+#OTUs - 16S rRNA
+S02EXPI16S.Otu.Table.2.Biofilm <- read.table('./S02EXPI16S.Otu.Table.2.Biofilm.txt', header = T, sep = '\t', dec = '.', skip = 0)
+S02EXPI16S.Otu.Table.2.SerieT.Biofilm <- as.data.frame(t(S02EXPI16S.Otu.Table.2.Biofilm))
+#Usar S02EXPI16S.Otu.Table.2.SerieT.Biofilm como input, ya esta transpuesta y leida como data.frame.
+filas16S.iguales.18S <- select(S02EXPI16S.Otu.Table.2.SerieT.Biofilm, -c(S02_C2132,S02_C2141,S02_C3132,S02_C3141,S02_C4141))
+
+#OTUs - 18S
+S02EXPI18S.Otu.Table.2.Biofilm <- read.table('./S02EXPI18S.Otu.Table.2.Biofilm.txt', header = T, sep = '\t', dec = '.', skip = 0)
+S02EXPI18S.Otu.Table.2.SerieT.Biofilm <- as.data.frame(t(S02EXPI18S.Otu.Table.2.Biofilm))
+
+#Para generar el dataframe mixto, unimos las filas de ambos dataframe.
+S02EXPI.16s18s.Biofilm <- rbind(filas16S.iguales.18S, S02EXPI18S.Otu.Table.2.SerieT.Biofilm) #Corresponde al data.frame con los datos provenientes de la secuenciacion del gen 16S y 18S rRNA.
+
+
+### Para el analisis de coocurrencia por tiempo, debemos dividir las columnas nuevamente por tiempo.
+#Tiempo 0.125 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125 <- select(S02EXPI.16s18s.Biofilm, contains('011'), contains('012'), contains('013'))
+#Tiempo 0.25 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.025 <- select(S02EXPI.16s18s.Biofilm, contains('021'), contains('022'), contains('023'))
+#Tiempo 0.375 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0375 <- select(S02EXPI.16s18s.Biofilm, contains('031'), contains('032'), contains('033'))
+#Tiempo 0.5 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.05 <- select(S02EXPI.16s18s.Biofilm, contains('041'), contains('042'), contains('043'))
+#Tiempo 0.75 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.075 <- select(S02EXPI.16s18s.Biofilm, contains('051'), contains('052'), contains('053'))
+#Tiempo 1 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.1 <- select(S02EXPI.16s18s.Biofilm, contains('061'), contains('062'), contains('063'))
+#Tiempo 2 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.2 <- select(S02EXPI.16s18s.Biofilm, contains('071'), contains('072'), contains('073'))
+#Tiempo 3 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.3 <- select(S02EXPI.16s18s.Biofilm, contains('081'), contains('082'), contains('083'))
+#Tiempo 5 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.5 <- select(S02EXPI.16s18s.Biofilm, contains('091'), contains('092'), contains('093'))
+#Tiempo 7 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.7 <- select(S02EXPI.16s18s.Biofilm, contains('C110'), contains('C210'), contains('C310'), contains('C410'))
+#Tiempo 21 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.21 <- select(S02EXPI.16s18s.Biofilm, contains('C111'), contains('C211'), contains('C311'), contains('C411'))
+#Tiempo 30 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.30 <- select(S02EXPI.16s18s.Biofilm, contains('C112'), contains('C212'), contains('C312'), contains('C412'))
+#Tiempo 55 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.55 <- select(S02EXPI.16s18s.Biofilm, contains('C113'), contains('C213'), contains('C313'), contains('C413'))
+#Tiempo 85 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.85 <- select(S02EXPI.16s18s.Biofilm, contains('C114'), contains('C214'), contains('C314'), contains('C414'))
+#Tiempo 112 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.112 <- select(S02EXPI.16s18s.Biofilm, contains('C115'), contains('C215'), contains('C315'), contains('C415'))
+
+
+#Preparacion de los data.frames necesarios para el analisis.
+SerieTempranoMedio <- as.data.frame(t(cbind(S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.025, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0375, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.05, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.075, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.1, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.2, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.3, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.5, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.7)))
+
+SerieTardio <- as.data.frame(t(cbind(S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.21, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.30, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.55, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.85, S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.112)))
+
+#Tax.Table para 16s18s
+Tax.Table.BacsEuks <- read.table('/Users/jpdaille/Desktop/Universidad/Doctorado-Tesis/2.Experimento_I/2.5.Caracterizacion_Molecular/Experimento_I/Tax.Table.BacsEuks.SEQS.NetworkAnalysis.csv', header = T, sep =',' , dec = '.', skip = 0)
+Tax.Table.BacsEuks.t <- as.data.frame(t(Tax.Table.BacsEuks))
+Nombres.BackEuks <- Tax.Table.BacsEuks[,1]
+colnames(Tax.Table.BacsEuks.t) <- Nombres.BackEuks
+
+```
+
+
+ANALISIS: Se determinaron las OTUs presentes exclusivamente en tiempos que generan un cambio en el comportamiento electroquimico de los cupones: tiempos tempranos y medios vs tardios. Se hicieron analisis cruzados entre grupos y en algunos casos se compararon las OTUs.
+```{r}
+#Preparar los vectores
+T.TempranoMedio <- colnames(SerieTempranoMedio[,which(colSums(SerieTempranoMedio[1:dim(SerieTempranoMedio)[1],])!=0)]) #vector de todas las OTUs de tiempos tempranos y medios.
+T.Tardio <-colnames(SerieTardio[,which(colSums(SerieTardio[1:dim(SerieTardio)[1],])!=0)]) #vector de todas las OTUs de tiempos tardios.
+
+#Determinacion de las exclusivas y aquellas presentes en ambos grupos.
+Diff.TM.Tardio <- setdiff(T.TempranoMedio,T.Tardio) #Exclusivas de tiempos tempranos y medios de exposicion = TM (TempranoMedio).
+Diff.Tardio.TM <- setdiff(T.Tardio,T.TempranoMedio) #Exclusivas de tiempos tardios de exposicion = Tardio.
+Equal.TM.Tardio <- intersect(T.TempranoMedio,T.Tardio) #Aquellos presentes en ambos tiempos.
+
+#Visualizacion de la distribucion de OTUs exclusivas y aquellas presentes en ambos grupos a traves de un diagrama de Venn.
+l2 <- list(T.TempranoMedio, T.Tardio)
+names(l2) <- c('Early&Middle', 'Late')
+plot.new() #Para que me muestre el grafico
+par(mar=c(0,0,0,0), oma=c(0,0,0,0))
+Venn.Diag(l2) #Hacer el diagrama de Venn
+par(new = F)
+```
+
+Se determinaron ademas las taxa de las OTUs presentes exclusivamente en tiempos tempranos y medios, en tiempos tardios y aquellas presentes en ambos grupos. 
+```{r}
+## TAXA UNICAS PARA EL GRUPO DE LOS TEMPRANOS Y MEDIOS (TM).
+Seleccionados.Diff.TM.Tardio <- as.data.frame(t(select(Tax.Table.BacsEuks.t, one_of(Diff.TM.Tardio)))) #Se obtienen las OTUs exclusivas de TM y se asignan.
+#Se pueden dividir dependiendo del nivel taxonomico que nos interese.
+#A nivel de CLASE
+Seleccionados.Diff.TM.Tardio.Class.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.TM.Tardio, Class))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de ORDEN
+Seleccionados.Diff.TM.Tardio.Order.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.TM.Tardio, Order))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de FAMILIA
+Seleccionados.Diff.TM.Tardio.FamilyI.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.TM.Tardio, FamilyI))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de GENERO
+Seleccionados.Diff.TM.Tardio.Genera.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.TM.Tardio, Genera))[,1])))[,1], cum=T, sort = "dec")
+
+
+## TAXA UNICAS PARA EL GRUPO TARDIO.
+Seleccionados.Diff.Tardio.TM <- as.data.frame(t(select(Tax.Table.BacsEuks.t, one_of(Diff.Tardio.TM)))) #Se obtienen las OTUs exclusivas de tiempos tardios de exposicion y se asignan.
+#Se pueden dividir dependiendo del nivel taxonomico que nos interese.
+#A nivel de CLASE
+Seleccionados.Diff.Tardio.TM.Class.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.Tardio.TM, Class))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de ORDEN
+Seleccionados.Diff.Tardio.TM.Order.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.Tardio.TM, Order))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de FAMILIA
+Seleccionados.Diff.Tardio.TM.FamilyI.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.Tardio.TM, FamilyI))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de GENERO
+Seleccionados.Diff.Tardio.TM.Genera.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Diff.Tardio.TM, Genera))[,1])))[,1], cum=T, sort = "dec")
+
+
+## PRESENTES EN AMBOS GRUPOS 
+Seleccionados.Equal.TM.Tardio <- as.data.frame(t(select(Tax.Table.BacsEuks.t, one_of(Equal.TM.Tardio)))) #Se obtienen las OTUs que se encuentran en ambos grupos.
+#Se pueden dividir dependiendo del nivel taxonomico que nos interese.
+#A nivel de CLASE
+Seleccionados.Equal.TM.Tardio.Class.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Equal.TM.Tardio, Class))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de ORDEN
+Seleccionados.Equal.TM.Tardio.Order.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Equal.TM.Tardio, Order))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de FAMILIA
+Seleccionados.Equal.TM.Tardio.FamilyI.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Equal.TM.Tardio, FamilyI))[,1])))[,1], cum=T, sort = "dec")
+#A nivel de GENERO
+Seleccionados.Equal.TM.Tardio.Genera.Grouped.Freq <- freq((as.data.frame(sort((select(Seleccionados.Equal.TM.Tardio, Genera))[,1])))[,1], cum=T, sort = "dec")
+```
+
+
+Debido a la redundancia de OTUs con la misma asignacion taxonomica, se realizo nuevamente un analisis para determinar aquellas taxa presentes exclusivamente en el grupo de tiempos tempranos y medios, tardios y presentes en ambos grupos.
+```{r}
+#Para analizar las diferencias entre los Taxa de ambos grupos - a NIVEL GENERO:
+Tax.TM <- as.vector(rownames(Seleccionados.Diff.TM.Tardio.Genera.Grouped.Freq)) #vector con los taxa asignados a OTUs exclusivas de TM
+Tax.Tardio <- as.vector(rownames(Seleccionados.Diff.Tardio.TM.Genera.Grouped.Freq)) #vector con los taxa asignados a OTUs exclusivas de Tardios
+Tax.Equal <- as.vector(rownames(Seleccionados.Equal.TM.Tardio.Genera.Grouped.Freq)) #vector con los taxa asignados a OTUs en ambos grupos
+
+#Determinacion de los taxa exclusivos para:
+Taxas.distintos.TM <- setdiff(Tax.TM,Tax.Tardio) #Tiempos tempranos y medios respecto a tardios.
+Taxas.distintos.TM.Core <- setdiff(Taxas.distintos.TM,Tax.Equal) #Exclusivos tiempos tempranos y medios respecto a los presente en ambos grupos (core).
+
+Taxas.distintos.Tardio <- setdiff(Tax.Tardio,Tax.TM) #Tiempos tardios respecto a tempranos y medios.
+Taxas.distintos.Tardio.Core <- setdiff(Taxas.distintos.Tardio,Tax.Equal) #Exclusivos tiempos tardios respecto a los presente en ambos grupos (core).
+
+
+
+
+#Para analizar las diferencias entre los Taxa de ambos grupos - a  NIVEL ORDEN:
+Tax.TM.Order <- as.vector(rownames(Seleccionados.Diff.TM.Tardio.Order.Grouped.Freq)) #vector con los taxa asignados a OTUs exclusivas de TM
+Tax.Tardio.Order <- as.vector(rownames(Seleccionados.Diff.Tardio.TM.Order.Grouped.Freq)) #vector con los taxa asignados a OTUs exclusivas de Tardios
+Tax.Equal.Order <- as.vector(rownames(Seleccionados.Equal.TM.Tardio.Order.Grouped.Freq)) #vector con los taxa asignados a OTUs en ambos grupos
+
+#Determinacion de los taxa exclusivos para:
+Taxas.distintos.TM.Order <- setdiff(Tax.TM.Order,Tax.Tardio.Order) #Tiempos tempranos y medios respecto a tardios.
+Taxas.distintos.TM.Core.Order <- setdiff(Taxas.distintos.TM.Order,Tax.Equal.Order) #Exclusivos tiempos tempranos y medios respecto a los presente en ambos grupos (core).
+
+Taxas.distintos.Tardio.Order <- setdiff(Tax.Tardio.Order,Tax.TM.Order) #Tiempos tardios respecto a tempranos y medios.
+Taxas.distintos.Tardio.Core.Order <- setdiff(Taxas.distintos.Tardio.Order,Tax.Equal.Order) #Exclusivos tiempos tardios respecto a los presente en ambos grupos (core).
+
+```
+
