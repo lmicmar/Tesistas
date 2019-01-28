@@ -1,0 +1,125 @@
+---
+title: "Leslie Daille - Apendice D"
+subtitle: Analisis de Correlacion de Pearson
+output: html_notebook
+---
+
+LIBRERIAS REQUERIDAS:
+```{r}
+library(stats)
+library(tidyverse)
+library(hrbrthemes)
+library(GGally)
+library(viridisLite)
+library(viridis)
+library(networkD3)
+```
+
+FUNCIONES REQUERIDAS:
+```{r}
+if (!require("corrplot")) install.packages("corrplot")
+library("corrplot")
+if (!require('RColorBrewer')) install.packages('RColorBrewer')
+library('RColorBrewer')
+# mat : is a matrix of data
+# ... : further arguments to pass to the native R cor.test function
+cor.mtest <- function(mat, ...) {
+ mat <- as.matrix(mat)
+ n <- ncol(mat)
+ p.mat<- matrix(NA, n, n)
+ diag(p.mat) <- 0
+ for (i in 1:(n - 1)) {
+   for (j in (i + 1):n) {
+     tmp <- cor.test(mat[, i], mat[, j], ...)
+     p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+   }
+ }
+ colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+ p.mat
+}
+# matrix of the p-value of the correlation
+
+```
+
+TABLAS PARA TRABAJAR:
+```{r}
+a <- read.table('./MatricesCorrelacion_a.txt', header = T, sep = '\t', dec = '.', skip = 0) #Matriz con datos de corrosion en el tiempo.
+b <- read.table('./MatricesCorrelacion_b.txt', header = T, sep = '\t', dec = '.', skip = 0) #Matriz con datos biologicos correspondiente con los tiempos con datos de corrosion disponibles.
+ab <- cbind(a,b)
+```
+
+ANALISIS: Determinacion de las correlaciones significativas entre variables biologicas con los indicadores de corrosion.
+```{r}
+#calculo de la matriz de significancia
+p.mat <- cor.mtest(ab, method = 'pearson', use = "na.or.complete")
+
+#Visualizar las correlaciones significativas
+corrplot(cor(ab, method = 'pearson', use = 'na.or.complete'),
+        method="circle", diag = F, tl.srt=45, type="lower", p.mat = p.mat, sig.level = 0.05, insig = "blank", tl.col="black", col=rev(brewer.pal(n=8, name="RdYlBu")))
+
+#Para el analisis de correlacion con los indicadores de corrosion se seleccionaron solo esas columnas.
+p.mat[,1:4]
+corrSig <- cor(ab, method = 'pearson', use = 'na.or.complete')[,1:4]
+corrSig[which(p.mat[,1:4]>.05)] <- NA #Para visualizar las correlaciones significativas con los parametros de corrosion se reemplazo a todos los que no eran significativos con NA.
+
+corrSigBio <- corrSig[18:66,c(1,2,4)]
+```
+
+GRAFICAR: Representacion grafica de las correlaciones determinadas como significativas, tanto positivas como negativas.
+```{r}
+## Correlacion positiva
+data2 <- as.data.frame(t(corrSigBio))
+
+# I need a long format
+data_long2 <- data2 %>%
+  rownames_to_column %>%
+  gather(key = 'key', value = 'value', -rowname) %>%
+  filter(value > 0)
+colnames(data_long2) <- c("source", "target", "value")
+data_long2$target <- paste(data_long2$target, " ", sep="")
+
+# From these flows we need to create a node data frame: it lists every entities involved in the flow
+nodes2 <- data.frame(name=c(as.character(data_long2$source), as.character(data_long2$target)) %>% unique())
+
+# With networkD3, connection must be provided using id, not using real name like in the links dataframe.. So we need to reformat it.
+data_long2$IDsource=match(data_long2$source, nodes2$name)-1 
+data_long2$IDtarget=match(data_long2$target, nodes2$name)-1
+
+# prepare colour scale
+ColourScal ='d3.scaleOrdinal() .range(["#440154FF","#460B5EFF","#481668FF","#481E70FF","#482778FF","#472F7EFF","#453882FF","#424086FF","#3F4889FF","#3C508BFF","#38588CFF","#355F8DFF","#31668EFF","#2E6D8EFF","#2C738EFF","#29798EFF","#27808EFF","#24868EFF","#228D8DFF","#20938CFF","#1F9A8AFF","#1FA188FF","#22A785FF","#27AD81FF","#2EB37CFF","#39B977FF","#44BF70FF","#52C569FF","#60CA60FF","#70CF57FF","#80D34DFF","#92D742FF","#A3DB36FF","#B6DE2AFF","#C9E020FF","#DBE319FF","#ECE51BFF","#FDE725FF"])'
+
+# Make the Network
+sankeyNetwork(Links = data_long2, Nodes = nodes2,
+                     Source = "IDsource", Target = "IDtarget",
+                     Value = "value", NodeID = "name", 
+                     sinksRight=FALSE, colourScale=ColourScal, nodeWidth=20, fontSize=10, nodePadding=10, LinkGroup = 'source')
+
+
+## Correlacion negativa
+
+# I need a long format
+data_long2 <- data2 %>%
+  rownames_to_column %>%
+  gather(key = 'key', value = 'value', -rowname) %>%
+  filter(value < 0)
+colnames(data_long2) <- c("source", "target", "value")
+data_long2$value <- data_long2$value * -1
+data_long2$target <- paste(data_long2$target, " ", sep="")
+
+# From these flows we need to create a node data frame: it lists every entities involved in the flow
+nodes2 <- data.frame(name=c(as.character(data_long2$source), as.character(data_long2$target)) %>% unique())
+
+# With networkD3, connection must be provided using id, not using real name like in the links dataframe.. So we need to reformat it.
+data_long2$IDsource=match(data_long2$source, nodes2$name)-1 
+data_long2$IDtarget=match(data_long2$target, nodes2$name)-1
+
+# prepare colour scale
+ColourScal ='d3.scaleOrdinal() .range(["#440154FF","#460B5EFF","#481668FF","#481E70FF","#482778FF","#472F7EFF","#453882FF","#424086FF","#3F4889FF","#3C508BFF","#38588CFF","#355F8DFF","#31668EFF","#2E6D8EFF","#2C738EFF","#29798EFF","#27808EFF","#24868EFF","#228D8DFF","#20938CFF","#1F9A8AFF","#1FA188FF","#22A785FF","#27AD81FF","#2EB37CFF","#39B977FF","#44BF70FF","#52C569FF","#60CA60FF","#70CF57FF","#80D34DFF","#92D742FF","#A3DB36FF","#B6DE2AFF","#C9E020FF","#DBE319FF","#ECE51BFF","#FDE725FF"])'
+
+# Make the Network
+sankeyNetwork(Links = data_long2, Nodes = nodes2,
+                     Source = "IDsource", Target = "IDtarget",
+                     Value = "value", NodeID = "name", 
+                     sinksRight=FALSE, colourScale=ColourScal, nodeWidth=20, fontSize=10, nodePadding=22, LinkGroup = 'source')
+```
+
