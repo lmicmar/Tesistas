@@ -1,0 +1,104 @@
+---
+title: "Leslie Daille - Apendice E"
+subtitle: Analisis de Co-Ocurrencia de Especies en la Comunidad Microbiana
+output: html_notebook
+---
+
+
+LIBERIAS REQUERIDAS:
+```{r}
+library(cooccur)
+library(gmp)
+library(ggplot2)
+library(reshape)
+library(igraph)
+library(Hmisc)
+```
+
+
+TABLAS PARA TRABAJAR:
+Se realizo la construccion de una tabla conjunta que incluye Bacterias, Arqueas y Eucariontes determinados en la biopelicula. Para luego construir tablas para cada tiempo de muestreo que seran utilizadas en la construccion de las redes de co-ocurrencia.
+```{r}
+#Tablas para analisis de la biopelicula considerando OTUs obtenidas desde la secuenciacion del gen 16S & 18S rRNA.
+
+library('dplyr')
+tiempos <- c(0.125, 0.25, 0.375, 0.5, 0.75, 1, 2, 3, 5, 7, 21, 30, 55, 85, 112)
+
+#OTUs - 16S rRNA
+S02EXPI16S.Otu.Table.2.Biofilm <- read.table('./S02EXPI16S.Otu.Table.2.Biofilm.txt', header = T, sep = '\t', dec = '.', skip = 0)
+S02EXPI16S.Otu.Table.2.SerieT.Biofilm <- as.data.frame(t(S02EXPI16S.Otu.Table.2.Biofilm))
+#Usar S02EXPI16S.Otu.Table.2.SerieT.Biofilm como input, ya esta transpuesta y leida como data.frame.
+filas16S.iguales.18S <- select(S02EXPI16S.Otu.Table.2.SerieT.Biofilm, -c(S02_C2132,S02_C2141,S02_C3132,S02_C3141,S02_C4141))
+
+#OTUs - 18S
+S02EXPI18S.Otu.Table.2.Biofilm <- read.table('./S02EXPI18S.Otu.Table.2.Biofilm.txt', header = T, sep = '\t', dec = '.', skip = 0)
+S02EXPI18S.Otu.Table.2.SerieT.Biofilm <- as.data.frame(t(S02EXPI18S.Otu.Table.2.Biofilm))
+
+#Para generar el dataframe mixto, unimos las filas de ambos dataframe.
+S02EXPI.16s18s.Biofilm <- rbind(filas16S.iguales.18S, S02EXPI18S.Otu.Table.2.SerieT.Biofilm) #Corresponde al data.frame con los datos provenientes de la secuenciacion del gen 16S y 18S rRNA.
+
+
+### Para el analisis de coocurrencia por tiempo, debemos dividir las columnas nuevamente por tiempo.
+#Tiempo 0.125 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125 <- select(S02EXPI.16s18s.Biofilm, contains('011'), contains('012'), contains('013'))
+#Tiempo 0.25 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.025 <- select(S02EXPI.16s18s.Biofilm, contains('021'), contains('022'), contains('023'))
+#Tiempo 0.375 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0375 <- select(S02EXPI.16s18s.Biofilm, contains('031'), contains('032'), contains('033'))
+#Tiempo 0.5 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.05 <- select(S02EXPI.16s18s.Biofilm, contains('041'), contains('042'), contains('043'))
+#Tiempo 0.75 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.075 <- select(S02EXPI.16s18s.Biofilm, contains('051'), contains('052'), contains('053'))
+#Tiempo 1 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.1 <- select(S02EXPI.16s18s.Biofilm, contains('061'), contains('062'), contains('063'))
+#Tiempo 2 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.2 <- select(S02EXPI.16s18s.Biofilm, contains('071'), contains('072'), contains('073'))
+#Tiempo 3 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.3 <- select(S02EXPI.16s18s.Biofilm, contains('081'), contains('082'), contains('083'))
+#Tiempo 5 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.5 <- select(S02EXPI.16s18s.Biofilm, contains('091'), contains('092'), contains('093'))
+#Tiempo 7 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.7 <- select(S02EXPI.16s18s.Biofilm, contains('C110'), contains('C210'), contains('C310'), contains('C410'))
+#Tiempo 21 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.21 <- select(S02EXPI.16s18s.Biofilm, contains('C111'), contains('C211'), contains('C311'), contains('C411'))
+#Tiempo 30 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.30 <- select(S02EXPI.16s18s.Biofilm, contains('C112'), contains('C212'), contains('C312'), contains('C412'))
+#Tiempo 55 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.55 <- select(S02EXPI.16s18s.Biofilm, contains('C113'), contains('C213'), contains('C313'), contains('C413'))
+#Tiempo 85 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.85 <- select(S02EXPI.16s18s.Biofilm, contains('C114'), contains('C214'), contains('C314'), contains('C414'))
+#Tiempo 112 dias
+S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.112 <- select(S02EXPI.16s18s.Biofilm, contains('C115'), contains('C215'), contains('C315'), contains('C415'))
+```
+
+
+A continuacion, el analisis realizados para la determinacion de co-ocurrencia de especies en la biopelicula para cada tiempo de muestreo.
+```{r}
+Tabla <- S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125[which(rowSums(S02EXPI16s18s.Otu.Table.2.SerieT.Biofilm.0125)!=0),] #Se utilizaron las respectivas tablas de acuerdo al tiempo analizado. En este ejemplo, se utilizo la tabla del primer tiempo de muestreo.
+Tabla[Tabla<1] <- 0 # Convertir la tabla de datos en una matriz binaria.
+Tabla[Tabla>0] <- 1 #Convertir la tabla de datos en una matriz binaria.
+Tabla<-Tabla[which(rowSums(Tabla)>=6),] #Se utilizo 6 para considerar solo aquellas OTUs que esten presente en al menos la mitad de las muestras.
+Tabla2 <- as.data.frame(Tabla) # Debo convertir la matriz en data.frame para el paquete Cooccur. 
+ 
+w <- cooccur(mat = Tabla2, type = "spp_site", thresh = TRUE, spp_names = TRUE) #Se utilizo la funcion cooccur. Esta funcion acepta datos de la comunidad (por ejemplo, matriz de especies por sitio o viceversa) en forma de un marco o matriz de datos y devuelve una lista que contiene los resultados de co-ocurrencia de especies por pares. Genera una tabla donde las dos primeras columnas son los enlaces <From-To>.
+class(w) #La clase de w debe ser cooccur.
+plot(w) 
+
+Matrizfromto4.16s18s.0125 <- as.data.frame(print(w))[1:5,] #Se genero un data.frame con los resultados de coocurrencia, mostrando solo las 5 primeras filas como ejemplo.
+
+v1 <- Matrizfromto4.16s18s.0125[Matrizfromto4.16s18s.0125$prob_cooccur > 0.4, ] # Se seleccionaron valores de coocurrencia mayores a 0.4 
+write.table(v1, file='SerieT.Biofilm.16s18s.0125.txt', sep = '\t')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
